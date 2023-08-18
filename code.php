@@ -2,58 +2,54 @@
 session_start();
 require "db_conn.php";
 
+//delete and move to trash
+ if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
+        $postId = $_GET['delete'];
 
-//delete post
-// if(isset($_POST['delete']))
-// {
-//    $blog_id = mysqli_real_escape_string($conn, $_POST['delete']);
-//    $query = "DELETE FROM blog_posts WHERE id='$blog_id'";
-//    $query_run = mysqli_query($conn, $query);
+        
+        $conn->query("SET FOREIGN_KEY_CHECKS = 0");
 
-//    if($query_run){
-//       $_SESSION['message'] = "Blog Deleted Successfully";
-//       header("Location: index.php");
-//       exit(0);
-//    }else{
-//       $_SESSION['message'] = "Blog Not Deleted";
-//       header("Location: index.php");
-//       exit(0);
-//    }
-// }
+        // Move post to trash
+        $moveToTrashSql = "INSERT INTO trash (post_id) VALUES ($postId)";
+        if ($conn->query($moveToTrashSql) === TRUE) {
+            $_SESSION['message'] = "Blog Deleted  and Moved to Trash Successfully";
+            header("Location: index.php");
+            exit(0);
+            // Delete post
+            $deletePostSql = "DELETE FROM blog_posts WHERE id = $postId";
+            if ($conn->query($deletePostSql) === TRUE) {
+                $_SESSION['message'] = "Blog Deleted Successfully";
+                header("Location: index.php");
+                exit(0);
+            } else {
+                echo "Error deleting post: " . $conn->error;
+            }
+        } else {
+            echo "Error moving post to trash: " . $conn->error;
+        }
+
+        $conn->query("SET FOREIGN_KEY_CHECKS = 1");
+    }
 
 
-//Trash
-if (isset($_GET['delete']) && isset($_GET['id'])) {
-   $blog_id = $_GET['id'];
+    $activePostsSql = "SELECT id, title, textarea, image_url  FROM blog_posts";
+    $activePostsResult = $conn->query($activePostsSql);
+
+    if ($activePostsResult->num_rows > 0) {
+        while ($row = $activePostsResult->fetch_assoc()) {
+            echo "<h2>" . $row["title"] . "</h2>";
+            echo "<p>" . $row["textarea"] . "</p>";
+            
+            echo "<a href=\"?delete={$row['id']}\">
+            <p>Delete and Move to Trash</a></p>";
+        }
+    } else {
+        echo "No active posts found.";
+    }
+
+    $conn->close();
 
 
-   $sql = "UPDATE blog_posts SET status = 'deleted' WHERE id = ?";
-   $stmt = $conn->prepare($sql);
-   
-   $stmt->bind_param("i", $blog_id); 
-   if ($stmt->execute()) {
-       echo "Post moved to trash successfully.";
-   } else {
-       echo "Error: " . $stmt->error;
-   }
-   $stmt->close();
-}
-
-//displays active posts to be deleted
-$sql = "SELECT * FROM blog_posts WHERE status = 'active'";
-$result = $conn->query($sql);
-
-if ($result->num_rows > 0) {
-   while ($row = $result->fetch_assoc()) {
-       echo "<div>";
-       echo "<h3>" . $row['title'] . "</h3>";
-       echo "<p>" . $row['textarea'] . "</p>";
-       echo "<a href='index.php?delete=true&id=" . $row['id'] . "'>Delete</a>";
-       echo "</div>";
-   }
-} else {
-   echo "No active posts found.";
-}
 
 if(isset($_POST['update']))
 {
